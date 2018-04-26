@@ -1,0 +1,178 @@
+<pre>
+<font color="#5e6d03">#include</font> <font color="#434f54">&lt;</font><b><font color="#d35400">LiquidCrystal</font></b><font color="#434f54">.</font><font color="#000000">h</font><font color="#434f54">&gt;</font>
+ <font color="#434f54">// initializes LCD</font>
+ &nbsp;<b><font color="#d35400">LiquidCrystal</font></b> <font color="#000000">lcd</font><font color="#000000">(</font><font color="#000000">8</font><font color="#434f54">,</font><font color="#000000">9</font><font color="#434f54">,</font><font color="#000000">10</font><font color="#434f54">,</font><font color="#000000">11</font><font color="#434f54">,</font><font color="#000000">12</font><font color="#434f54">,</font><font color="#000000">13</font><font color="#000000">)</font><font color="#000000">;</font>
+ &nbsp;
+ &nbsp;<font color="#434f54">//Pin Labels</font>
+ &nbsp;<font color="#00979c">const</font> <font color="#00979c">int</font> <font color="#000000">interruptPin</font> <font color="#434f54">=</font> <font color="#000000">2</font><font color="#000000">;</font> <font color="#434f54">//Pin detects when blades interupt the tachometer.</font>
+ &nbsp;<font color="#00979c">const</font> <font color="#00979c">int</font> <font color="#000000">buttonPin</font> <font color="#434f54">=</font> <font color="#000000">3</font><font color="#000000">;</font> <font color="#434f54">//Pin detects when the button is pressed.</font>
+ &nbsp;
+
+ &nbsp;&nbsp;<font color="#434f54">//Global variables</font>
+ &nbsp;&nbsp;
+ &nbsp;&nbsp;<font color="#434f54">//rpm vairables</font>
+ &nbsp;&nbsp;<font color="#434f54">// Initailizes break count and sets to 0, This counts the number of times the blades break the tachometer beam.</font>
+ &nbsp;<font color="#00979c">int</font> <font color="#000000">breakCount</font> <font color="#434f54">=</font> <font color="#000000">0</font><font color="#000000">;</font> 
+ &nbsp;<font color="#00979c">float</font> &nbsp;<font color="#000000">startTime</font> <font color="#434f54">=</font> <font color="#000000">0.0</font><font color="#000000">;</font> <font color="#434f54">// This is the time we start</font>
+ &nbsp;<font color="#00979c">float</font> &nbsp;<font color="#000000">endTime</font> <font color="#434f54">=</font> <font color="#000000">0.0</font><font color="#000000">;</font> <font color="#434f54">// This is the time we end</font>
+ &nbsp;<font color="#00979c">int</font> <font color="#000000">rpm</font> <font color="#434f54">=</font> <font color="#000000">0</font><font color="#000000">;</font> <font color="#434f54">// This is revolutions per minute. </font>
+ &nbsp;<font color="#00979c">int</font> <font color="#000000">numberOfBlades</font> <font color="#434f54">=</font> <font color="#000000">4</font><font color="#000000">;</font> <font color="#434f54">// We have four fan blades.</font>
+ &nbsp;<font color="#434f54">// This is mainly a conversion vairable, so we can get rpm in proper units.</font>
+ &nbsp;<font color="#00979c">float</font> <font color="#000000">minutes</font> <font color="#434f54">=</font> <font color="#000000">0.0</font><font color="#000000">;</font> 
+ &nbsp;
+ &nbsp;<font color="#434f54">//lcd variables</font>
+ &nbsp;<font color="#00979c">int</font> <font color="#000000">displaySetting</font> <font color="#434f54">=</font> <font color="#000000">1</font><font color="#000000">;</font> <font color="#434f54">//This is the display setting, determines which set of information is displayed on the LCD</font>
+ &nbsp;<font color="#00979c">const</font> <font color="#00979c">int</font> <font color="#000000">MAX_DISPLAYS</font> <font color="#434f54">=</font> <font color="#000000">3</font><font color="#000000">;</font> <font color="#434f54">// There are three possible screens for the button to toggle</font>
+ &nbsp;<font color="#00979c">unsigned</font> <font color="#00979c">long</font> <font color="#000000">lastDisplaySwitch</font> <font color="#434f54">=</font> <font color="#d35400">millis</font><font color="#000000">(</font><font color="#000000">)</font><font color="#000000">;</font> <font color="#434f54">// takes the time of the last display</font>
+ &nbsp;<font color="#00979c">const</font> <font color="#00979c">int</font> <font color="#000000">DISPLAY_DELAY</font> <font color="#434f54">=</font> <font color="#000000">250</font><font color="#000000">;</font> <font color="#434f54">// delay of the lcd toggle</font>
+
+ &nbsp;<font color="#434f54">//Efficiency and Power</font>
+ &nbsp;<font color="#434f54">//Most of these vairables are just used in calculating the efficiency and power.</font>
+ &nbsp;<font color="#00979c">double</font> <font color="#000000">eff</font><font color="#000000">;</font> <font color="#434f54">// the efficiency</font>
+ &nbsp;<font color="#00979c">int</font> <font color="#000000">nIn</font><font color="#000000">;</font> <font color="#434f54">// rpm</font>
+ &nbsp;<font color="#00979c">int</font> <font color="#000000">nOut</font><font color="#000000">;</font> <font color="#434f54">// product of rpm and gear ratio</font>
+ &nbsp;<font color="#00979c">double</font> <font color="#000000">powerOut</font><font color="#000000">;</font> <font color="#434f54">// The power of the system</font>
+ &nbsp;<font color="#00979c">double</font> <font color="#000000">powerIn</font><font color="#000000">;</font> <font color="#434f54">// Power put into the system</font>
+ &nbsp;<font color="#00979c">double</font> <font color="#000000">powerInMotor</font><font color="#000000">;</font> <font color="#434f54">//Power the motor puts into the system</font>
+ &nbsp;<font color="#00979c">double</font> <font color="#000000">torqueIn</font><font color="#000000">;</font> <font color="#434f54">//Torque exerted on the system</font>
+ &nbsp;<font color="#00979c">double</font> <font color="#000000">torqueOut</font><font color="#000000">;</font> <font color="#434f54">//Torque exerted by the windmill</font>
+ &nbsp;<font color="#00979c">double</font> <font color="#000000">torqueOutGCM</font><font color="#000000">;</font> <font color="#434f54">//the torque out of the system in grams/cm</font>
+ &nbsp;<font color="#00979c">int</font> <font color="#000000">nMotor</font><font color="#000000">;</font> <font color="#434f54">// Efficiency of the motor</font>
+ &nbsp;<font color="#00979c">int</font> <font color="#000000">teethIn</font> <font color="#434f54">=</font> <font color="#000000">8</font><font color="#000000">;</font> <font color="#434f54">// Number of teeth on the motor </font>
+ &nbsp;<font color="#00979c">int</font> <font color="#000000">teethOut</font> <font color="#434f54">=</font> <font color="#000000">32</font><font color="#000000">;</font> <font color="#434f54">// Number of teeth on the fan blade axle</font>
+ &nbsp;<font color="#00979c">int</font> <font color="#000000">gearRatio</font> <font color="#434f54">=</font> <font color="#000000">teethOut</font> <font color="#434f54">/</font> <font color="#000000">teethIn</font><font color="#000000">;</font> <font color="#434f54">// teeth out divided by teeth in </font>
+ &nbsp;
+
+<font color="#00979c">void</font> <font color="#5e6d03">setup</font><font color="#000000">(</font><font color="#000000">)</font> <font color="#000000">{</font>
+ &nbsp;<font color="#434f54">// lcd start</font>
+ &nbsp;<font color="#000000">lcd</font><font color="#434f54">.</font><font color="#d35400">begin</font><font color="#000000">(</font><font color="#000000">16</font><font color="#434f54">,</font><font color="#000000">2</font><font color="#000000">)</font><font color="#000000">;</font><font color="#434f54">// initializes LCD</font>
+ &nbsp;<font color="#000000">lcd</font><font color="#434f54">.</font><font color="#d35400">display</font><font color="#000000">(</font><font color="#000000">)</font><font color="#000000">;</font> <font color="#434f54">// LCD starts display</font>
+
+ &nbsp;<font color="#434f54">//set interruptPin to input</font>
+ &nbsp;<font color="#d35400">pinMode</font><font color="#000000">(</font><font color="#000000">interruptPin</font><font color="#434f54">,</font> <font color="#00979c">INPUT</font><font color="#000000">)</font><font color="#000000">;</font> <font color="#434f54">// sets interrupt pin to recieve input</font>
+ &nbsp;<font color="#434f54">// as soon as the interrupt pin detects a falling edge in current it will call the broken function</font>
+ &nbsp;<font color="#d35400">attachInterrupt</font><font color="#000000">(</font><font color="#d35400">digitalPinToInterrupt</font><font color="#000000">(</font><font color="#000000">interruptPin</font><font color="#000000">)</font><font color="#434f54">,</font> <font color="#000000">broken</font><font color="#434f54">,</font> <font color="#00979c">FALLING</font><font color="#000000">)</font><font color="#000000">;</font> 
+ &nbsp;<font color="#434f54">//set buttonPin to input</font>
+ &nbsp;<font color="#d35400">pinMode</font><font color="#000000">(</font><font color="#000000">buttonPin</font><font color="#434f54">,</font> <font color="#00979c">INPUT</font><font color="#000000">)</font><font color="#000000">;</font> <font color="#434f54">//sets button pin to recieve input</font>
+ &nbsp;<font color="#434f54">// as soon as the button pin detects a falling edge it calls the changeDisplaySetting function</font>
+ &nbsp;<font color="#d35400">attachInterrupt</font><font color="#000000">(</font><font color="#d35400">digitalPinToInterrupt</font><font color="#000000">(</font><font color="#000000">buttonPin</font><font color="#000000">)</font><font color="#434f54">,</font> <font color="#000000">changeDisplaySetting</font><font color="#434f54">,</font> <font color="#00979c">FALLING</font><font color="#000000">)</font><font color="#000000">;</font>
+
+ &nbsp;<font color="#434f54">// initializes serial monitor for debug</font>
+ &nbsp;<b><font color="#d35400">Serial</font></b><font color="#434f54">.</font><font color="#d35400">begin</font><font color="#000000">(</font><font color="#000000">9600</font><font color="#000000">)</font><font color="#000000">;</font>
+<font color="#000000">}</font>
+
+<font color="#00979c">void</font> <font color="#5e6d03">loop</font><font color="#000000">(</font><font color="#000000">)</font> 
+<font color="#000000">{</font>
+ &nbsp;<font color="#d35400">delay</font><font color="#000000">(</font><font color="#000000">1000</font><font color="#000000">)</font><font color="#000000">;</font> <font color="#434f54">//Time delay on display </font>
+ &nbsp;<font color="#000000">displayLCD</font><font color="#000000">(</font><font color="#000000">)</font><font color="#000000">;</font><font color="#434f54">// displays LCD</font>
+ 
+ &nbsp;<font color="#434f54">//RPM</font>
+ &nbsp;<font color="#5e6d03">if</font><font color="#000000">(</font><font color="#000000">breakCount</font> <font color="#434f54">&gt;=</font> <font color="#000000">30</font><font color="#000000">)</font> <font color="#434f54">// as soon as 30 breaks in the tachometer are counted </font>
+ <font color="#000000">{</font>
+
+ &nbsp;<font color="#000000">endTime</font> <font color="#434f54">=</font> <font color="#d35400">millis</font><font color="#000000">(</font><font color="#000000">)</font><font color="#000000">;</font> <font color="#434f54">// takes current time and stores it as end time.</font>
+ &nbsp;
+ &nbsp;<font color="#434f54">//there are 60000 milliseconds in one minute and a full rotation is 4 break counts.</font>
+ &nbsp;<font color="#000000">minutes</font> <font color="#434f54">=</font> <font color="#000000">(</font><font color="#000000">endTime</font> <font color="#434f54">-</font> <font color="#000000">startTime</font><font color="#000000">)</font> <font color="#434f54">/</font> <font color="#000000">60000</font><font color="#000000">;</font> <font color="#434f54">// convert the time to minutes</font>
+ &nbsp;<font color="#000000">rpm</font> <font color="#434f54">=</font> <font color="#000000">(</font><font color="#000000">breakCount</font> <font color="#434f54">/</font> <font color="#000000">numberOfBlades</font><font color="#000000">)</font> <font color="#434f54">/</font> <font color="#000000">minutes</font><font color="#000000">;</font> <font color="#434f54">// calculate rpm, rev/min</font>
+
+ &nbsp;<b><font color="#d35400">Serial</font></b><font color="#434f54">.</font><font color="#d35400">print</font><font color="#000000">(</font><font color="#005c5f">"RPM = "</font><font color="#000000">)</font><font color="#000000">;</font> <font color="#434f54">// prints rpm to serial monitor for debugging purposes</font>
+ &nbsp;<b><font color="#d35400">Serial</font></b><font color="#434f54">.</font><font color="#d35400">println</font><font color="#000000">(</font><font color="#000000">rpm</font><font color="#000000">)</font><font color="#000000">;</font>
+ &nbsp;<font color="#000000">breakCount</font> <font color="#434f54">=</font> <font color="#000000">0</font><font color="#000000">;</font> <font color="#434f54">//resets the break count so the function will continue to repeat itself</font>
+ &nbsp;
+ <font color="#000000">}</font>
+ &nbsp;&nbsp;
+<font color="#000000">}</font>
+
+<font color="#00979c">void</font> <font color="#000000">displayLCD</font><font color="#000000">(</font><font color="#000000">)</font> <font color="#434f54">// After ChangeDisplaySetting is called this function determines what piece of information is displayed</font>
+<font color="#000000">{</font>
+ &nbsp;&nbsp;<font color="#5e6d03">switch</font><font color="#000000">(</font><font color="#000000">displaySetting</font><font color="#000000">)</font> <font color="#434f54">// Depending on the display setting a different piece of information will be displayed</font>
+ &nbsp;&nbsp;<font color="#000000">{</font>
+ &nbsp;&nbsp;&nbsp;&nbsp;<font color="#5e6d03">case</font> <font color="#000000">1</font><font color="#434f54">:</font> <font color="#434f54">//If display setting is one then LCD will display the RPM</font>
+ &nbsp;&nbsp;&nbsp;&nbsp;<font color="#000000">lcd</font><font color="#434f54">.</font><font color="#d35400">clear</font><font color="#000000">(</font><font color="#000000">)</font><font color="#000000">;</font> <font color="#434f54">// Clears the LCD</font>
+ &nbsp;&nbsp;&nbsp;&nbsp;<font color="#000000">lcd</font><font color="#434f54">.</font><font color="#d35400">print</font><font color="#000000">(</font><font color="#005c5f">"RPM: "</font><font color="#000000">)</font><font color="#000000">;</font> <font color="#434f54">//Tells what information is being displayed</font>
+ &nbsp;&nbsp;&nbsp;&nbsp;<font color="#000000">lcd</font><font color="#434f54">.</font><font color="#d35400">print</font><font color="#000000">(</font><font color="#000000">rpm</font><font color="#000000">)</font><font color="#000000">;</font> <font color="#434f54">// Displays rpm</font>
+ &nbsp;&nbsp;&nbsp;&nbsp;<font color="#000000">lcd</font><font color="#434f54">.</font><font color="#d35400">print</font><font color="#000000">(</font><font color="#005c5f">"rpm"</font><font color="#000000">)</font><font color="#000000">;</font> <font color="#434f54">// Units of rpm</font>
+ &nbsp;&nbsp;&nbsp;&nbsp;<font color="#5e6d03">break</font><font color="#000000">;</font> <font color="#434f54">// tells the computer that this statement is over</font>
+ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+ &nbsp;&nbsp;&nbsp;&nbsp;<font color="#5e6d03">case</font> <font color="#000000">2</font><font color="#434f54">:</font> <font color="#434f54">//If display setting is one then LCD will display the power</font>
+ &nbsp;&nbsp;&nbsp;&nbsp;<font color="#000000">lcd</font><font color="#434f54">.</font><font color="#d35400">clear</font><font color="#000000">(</font><font color="#000000">)</font><font color="#000000">;</font> <font color="#434f54">// clears the LCD</font>
+ &nbsp;&nbsp;&nbsp;&nbsp;<font color="#000000">efficiency</font><font color="#000000">(</font><font color="#000000">)</font><font color="#000000">;</font> <font color="#434f54">// calls the efficiency function which calculates both power and efficiency</font>
+ &nbsp;&nbsp;&nbsp;&nbsp;<font color="#000000">lcd</font><font color="#434f54">.</font><font color="#d35400">print</font><font color="#000000">(</font><font color="#005c5f">"Power: "</font><font color="#000000">)</font><font color="#000000">;</font> <font color="#434f54">// Tells what is being displayed</font>
+ &nbsp;&nbsp;&nbsp;&nbsp;<font color="#000000">lcd</font><font color="#434f54">.</font><font color="#d35400">print</font><font color="#000000">(</font><font color="#000000">powerOut</font><font color="#000000">)</font><font color="#000000">;</font> <font color="#434f54">// Displays power</font>
+ &nbsp;&nbsp;&nbsp;&nbsp;<font color="#000000">lcd</font><font color="#434f54">.</font><font color="#d35400">print</font><font color="#000000">(</font><font color="#005c5f">"W"</font><font color="#000000">)</font><font color="#000000">;</font> <font color="#434f54">// Units of power</font>
+ &nbsp;&nbsp;&nbsp;&nbsp;<font color="#5e6d03">break</font><font color="#000000">;</font> <font color="#434f54">// tells the computer that this statement is over</font>
+ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+ &nbsp;&nbsp;&nbsp;&nbsp;<font color="#5e6d03">case</font> <font color="#000000">3</font><font color="#434f54">:</font> <font color="#434f54">//If display setting is one then LCD will display the efficiency</font>
+ &nbsp;&nbsp;&nbsp;&nbsp;<font color="#000000">lcd</font><font color="#434f54">.</font><font color="#d35400">clear</font><font color="#000000">(</font><font color="#000000">)</font><font color="#000000">;</font> <font color="#434f54">// Clears LCD</font>
+ &nbsp;&nbsp;&nbsp;&nbsp;<font color="#000000">efficiency</font><font color="#000000">(</font><font color="#000000">)</font><font color="#000000">;</font> <font color="#434f54">// Calls the efficiency function which calculates both power and efficiency </font>
+ &nbsp;&nbsp;&nbsp;&nbsp;<font color="#000000">lcd</font><font color="#434f54">.</font><font color="#d35400">print</font><font color="#000000">(</font><font color="#005c5f">"Efficiency: "</font><font color="#000000">)</font><font color="#000000">;</font> <font color="#434f54">// Tells what is being displayed</font>
+ &nbsp;&nbsp;&nbsp;&nbsp;<font color="#000000">lcd</font><font color="#434f54">.</font><font color="#d35400">print</font><font color="#000000">(</font><font color="#000000">eff</font><font color="#000000">)</font><font color="#000000">;</font> <font color="#434f54">// Displays efficiency</font>
+ &nbsp;&nbsp;&nbsp;&nbsp;<font color="#000000">lcd</font><font color="#434f54">.</font><font color="#d35400">print</font><font color="#000000">(</font><font color="#005c5f">"%"</font><font color="#000000">)</font><font color="#000000">;</font> <font color="#434f54">// Efficiency is displayed as a percentage</font>
+ &nbsp;&nbsp;&nbsp;&nbsp;<font color="#5e6d03">break</font><font color="#000000">;</font> <font color="#434f54">// tells the computer that this statement is over</font>
+ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+ &nbsp;&nbsp;&nbsp;&nbsp;<font color="#5e6d03">default</font><font color="#434f54">:</font> <font color="#434f54">//serves no real purpose, only to debug, the only way to access this is if an error occured in the code</font>
+ &nbsp;&nbsp;&nbsp;&nbsp;<font color="#000000">lcd</font><font color="#434f54">.</font><font color="#d35400">clear</font><font color="#000000">(</font><font color="#000000">)</font><font color="#000000">;</font> <font color="#434f54">//Clears LCD</font>
+ &nbsp;&nbsp;&nbsp;&nbsp;<font color="#000000">lcd</font><font color="#434f54">.</font><font color="#d35400">print</font><font color="#000000">(</font><font color="#005c5f">"Unknown Setting!!!!!!!!!!"</font><font color="#000000">)</font><font color="#000000">;</font> <font color="#434f54">// Tells the user something went wrong</font>
+ &nbsp;&nbsp;<font color="#000000">}</font>
+ <font color="#000000">}</font>
+
+<font color="#00979c">void</font> <font color="#000000">broken</font> <font color="#000000">(</font><font color="#000000">)</font> <font color="#434f54">// This function is called everytime the tachometer beam is broken </font>
+<font color="#000000">{</font>
+ &nbsp;<font color="#5e6d03">if</font><font color="#000000">(</font><font color="#000000">breakCount</font> <font color="#434f54">==</font> <font color="#000000">0</font><font color="#000000">)</font> <font color="#434f54">// If this is the first break </font>
+ &nbsp;<font color="#000000">{</font>
+ &nbsp;&nbsp;&nbsp;<font color="#000000">startTime</font> <font color="#434f54">=</font> <font color="#d35400">millis</font><font color="#000000">(</font><font color="#000000">)</font><font color="#000000">;</font> <font color="#434f54">// Start time equals current time</font>
+ &nbsp;<font color="#000000">}</font>
+
+ &nbsp;<font color="#000000">breakCount</font><font color="#434f54">++</font><font color="#000000">;</font> <font color="#434f54">// Adds one to break count</font>
+
+<font color="#000000">}</font>
+
+<font color="#00979c">void</font> <font color="#000000">changeDisplaySetting</font><font color="#000000">(</font><font color="#000000">)</font> <font color="#434f54">// This function handles the change in the display</font>
+<font color="#000000">{</font>
+ &nbsp;<font color="#434f54">// If enough time has elapsed since the last display change then the following code is executed.</font>
+ &nbsp;<font color="#5e6d03">if</font><font color="#000000">(</font><font color="#000000">lastDisplaySwitch</font> <font color="#434f54">+</font><font color="#000000">DISPLAY_DELAY</font> <font color="#434f54">&lt;</font> <font color="#d35400">millis</font><font color="#000000">(</font><font color="#000000">)</font><font color="#000000">)</font> 
+ &nbsp;<font color="#000000">{</font>
+ &nbsp;&nbsp;&nbsp;<font color="#000000">lastDisplaySwitch</font> <font color="#434f54">=</font> <font color="#d35400">millis</font><font color="#000000">(</font><font color="#000000">)</font><font color="#000000">;</font> <font color="#434f54">// Records current time and sets that as the last switch</font>
+ &nbsp;&nbsp;&nbsp;<font color="#434f54">// Tells the serial display that the display should be switched, this is mainly used to debug</font>
+ &nbsp;&nbsp;&nbsp;<b><font color="#d35400">Serial</font></b><font color="#434f54">.</font><font color="#d35400">println</font><font color="#000000">(</font><font color="#005c5f">"Switching display"</font><font color="#000000">)</font><font color="#000000">;</font> 
+ &nbsp;&nbsp;&nbsp;<font color="#000000">displaySetting</font><font color="#434f54">++</font><font color="#000000">;</font> <font color="#434f54">// Increments the display setting so the display will change on the LCD</font>
+ &nbsp;&nbsp;&nbsp;
+ &nbsp;&nbsp;&nbsp;<font color="#5e6d03">if</font><font color="#000000">(</font><font color="#000000">displaySetting</font><font color="#434f54">&gt;</font><font color="#000000">MAX_DISPLAYS</font><font color="#000000">)</font> <font color="#434f54">// If the display setting ever increments above the available display options.</font>
+ &nbsp;&nbsp;&nbsp;<font color="#000000">{</font>
+ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<font color="#000000">displaySetting</font> <font color="#434f54">=</font> <font color="#000000">1</font><font color="#000000">;</font> <font color="#434f54">// Resets display setting back to one</font>
+ &nbsp;&nbsp;&nbsp;<font color="#000000">}</font>
+ &nbsp;&nbsp;&nbsp;
+ &nbsp;&nbsp;&nbsp;<font color="#000000">displayLCD</font><font color="#000000">(</font><font color="#000000">)</font><font color="#000000">;</font> <font color="#434f54">// Calls the display function to actually change the display</font>
+ &nbsp;
+ &nbsp;<font color="#000000">}</font>
+<font color="#000000">}</font>
+<font color="#434f54">// Calcluates both efficiency and power, all the euqations are found in the LCD part 2 packet or the torque curves</font>
+<font color="#00979c">void</font> <font color="#000000">efficiency</font><font color="#000000">(</font><font color="#000000">)</font> 
+<font color="#000000">{</font>
+ &nbsp;<font color="#000000">nIn</font> <font color="#434f54">=</font> <font color="#000000">rpm</font><font color="#000000">;</font> <font color="#434f54">// Sets nIn to rpm</font>
+ &nbsp;<font color="#000000">nOut</font> <font color="#434f54">=</font> <font color="#000000">gearRatio</font> <font color="#434f54">*</font> <font color="#000000">nIn</font><font color="#000000">;</font> <font color="#434f54">// Sets nOut to the product of gear ratio and nIn</font>
+
+ &nbsp;<font color="#000000">torqueOutGCM</font> <font color="#434f54">=</font> <font color="#000000">(</font><font color="#000000">nOut</font><font color="#434f54">-</font><font color="#000000">12800</font><font color="#000000">)</font><font color="#434f54">/</font><font color="#434f54">-</font><font color="#000000">40</font><font color="#000000">;</font> <font color="#434f54">// Using the line nOut = -40torqueOutGCM + 12800</font>
+ &nbsp;<font color="#000000">torqueOut</font> <font color="#434f54">=</font> <font color="#000000">torqueOutGCM</font> <font color="#434f54">*</font> <font color="#000000">0.0000980655</font><font color="#000000">;</font> <font color="#000000">Converts</font> <font color="#000000">from</font> <font color="#000000">grams</font><font color="#434f54">/</font><font color="#000000">centimeter</font> <font color="#000000">to</font> <font color="#000000">newton</font><font color="#434f54">*</font><font color="#000000">meters</font>
+ &nbsp;<font color="#000000">torqueIn</font> <font color="#434f54">=</font> <font color="#000000">(</font><font color="#000000">torqueOut</font> <font color="#434f54">*</font> <font color="#000000">nOut</font><font color="#000000">)</font> <font color="#434f54">/</font> <font color="#000000">nIn</font><font color="#000000">;</font> <font color="#434f54">// Calculates torqueIn</font>
+ &nbsp;<font color="#000000">powerIn</font> <font color="#434f54">=</font> <font color="#000000">(</font><font color="#000000">(</font><font color="#000000">torqueIn</font> <font color="#434f54">*</font> <font color="#000000">nIn</font><font color="#000000">)</font> <font color="#434f54">/</font> <font color="#000000">9549</font><font color="#000000">)</font> <font color="#434f54">*</font> <font color="#000000">1000</font><font color="#000000">;</font> <font color="#000000">Calculates</font> <font color="#000000">powerIn</font>
+ &nbsp;<font color="#5e6d03">if</font> <font color="#000000">(</font><font color="#000000">torqueOutGCM</font> <font color="#434f54">&lt;=</font> <font color="#000000">48</font><font color="#000000">)</font><font color="#434f54">// If statement determines which relationship to use while calculating efficiency of the motor</font>
+ &nbsp;<font color="#000000">{</font>
+ &nbsp;&nbsp;&nbsp;<font color="#434f54">// If torqueOutGCM is less than or equal to 48 use this</font>
+ &nbsp;&nbsp;&nbsp;<font color="#000000">nMotor</font> <font color="#434f54">=</font> <font color="#000000">(</font><font color="#434f54">-</font><font color="#000000">0.001618</font> <font color="#434f54">*</font> <font color="#000000">torqueOutGCM</font> <font color="#434f54">*</font> <font color="#000000">torqueOutGCM</font><font color="#000000">)</font> <font color="#434f54">+</font> <font color="#000000">(</font><font color="#000000">0.363542</font> <font color="#434f54">*</font> <font color="#000000">torqueOutGCM</font><font color="#000000">)</font> <font color="#434f54">+</font> <font color="#000000">49.376500</font><font color="#000000">;</font> 
+ &nbsp;<font color="#000000">}</font>
+ &nbsp;<font color="#5e6d03">else</font>
+ &nbsp;<font color="#000000">{</font>
+ &nbsp;&nbsp;&nbsp;<font color="#000000">nMotor</font> <font color="#434f54">=</font> <font color="#000000">(</font><font color="#434f54">-</font><font color="#000000">0.000434</font> <font color="#434f54">*</font> <font color="#000000">torqueOutGCM</font> <font color="#434f54">*</font> <font color="#000000">torqueOutGCM</font><font color="#000000">)</font> <font color="#434f54">-</font> <font color="#000000">(</font><font color="#000000">0.072269</font> <font color="#434f54">*</font> <font color="#000000">torqueOutGCM</font><font color="#000000">)</font> <font color="#434f54">+</font> <font color="#000000">67.566800</font><font color="#000000">;</font> <font color="#434f54">// If greater than 48 use this.</font>
+ &nbsp;<font color="#000000">}</font>
+ &nbsp;<font color="#000000">powerInMotor</font> <font color="#434f54">=</font> <font color="#000000">(</font><font color="#434f54">-</font><font color="#000000">0.000428</font> <font color="#434f54">*</font> <font color="#000000">torqueOutGCM</font> <font color="#434f54">*</font> <font color="#000000">torqueOutGCM</font><font color="#000000">)</font> <font color="#434f54">+</font> <font color="#000000">(</font><font color="#000000">0.136943</font> <font color="#434f54">*</font> <font color="#000000">torqueOutGCM</font><font color="#000000">)</font> <font color="#434f54">+</font> <font color="#000000">0.000739</font><font color="#000000">;</font> <font color="#434f54">// Calculates powerIn </font>
+ &nbsp;<font color="#000000">powerOut</font> <font color="#434f54">=</font> <font color="#000000">nMotor</font> <font color="#434f54">*</font> <font color="#000000">powerInMotor</font><font color="#000000">;</font> <font color="#434f54">// Calculates powerOut, which is the power that is displayed on the LCD</font>
+ &nbsp;
+ &nbsp;
+ &nbsp;<font color="#000000">eff</font> <font color="#434f54">=</font> <font color="#000000">(</font><font color="#000000">powerOut</font> <font color="#434f54">/</font> <font color="#000000">powerIn</font><font color="#000000">)</font><font color="#000000">;</font> <font color="#434f54">// Calculates efficiency which is displayed on the LCD</font>
+<font color="#000000">}</font>
+
+
+
+</pre>
